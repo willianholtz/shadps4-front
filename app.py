@@ -36,6 +36,17 @@ FRONT_DIR = os.path.join(PROJ_DIR, "config")
 FRONT_CONFIG = os.path.join(FRONT_DIR, "front.json")
 LEGACY_CONFIG = os.path.expanduser("~/.config/shadps4-front/config.json")
 
+# AppImage/PyInstaller: o bundle e temporario e somente-leitura, entao as
+# preferencias sao gravadas em ~/.config/shadps4-front (caminho do config legado).
+if getattr(sys, "frozen", False):
+    FRONT_DIR = os.path.dirname(LEGACY_CONFIG)
+    FRONT_CONFIG = LEGACY_CONFIG
+
+
+def res(*parts):
+    """Caminho de recurso: dentro do bundle quando congelado, senao na pasta do projeto."""
+    return os.path.join(getattr(sys, "_MEIPASS", PROJ_DIR), *parts)
+
 
 def default_front():
     return {"game_dirs": install_dirs_from_shad(), "emu_bin": "shadps4",
@@ -508,7 +519,7 @@ class Main(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("shadps4-front")
-        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.png")
+        icon_path = res("icon.png")
         if os.path.isfile(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         self.resize(1000, 650)
@@ -653,11 +664,15 @@ class Main(QMainWindow):
             self.apply_view()
 
     def install_pkg(self):
-        tool = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            "tools", "pkginstall-cli")
+        tool = res("tools", "pkginstall-cli")
         if not os.path.isfile(tool):
             QMessageBox.warning(self, "shadps4-front", "pkginstall-cli não encontrado em tools/.")
             return
+        if not os.access(tool, os.X_OK):  # bundle extraido sem bit de execucao
+            try:
+                os.chmod(tool, 0o755)
+            except OSError:
+                pass
         files, _ = QFileDialog.getOpenFileNames(
             self, "Selecionar PKG(s)", os.path.expanduser("~/Downloads"),
             "PS4 PKG (*.pkg)")

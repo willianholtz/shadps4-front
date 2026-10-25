@@ -1,0 +1,10 @@
+{
+  "game_dirs": [
+    "/home/SEU-USUARIO/games/ps4"
+  ],
+  "emu_bin": "shadps4",
+  "use_gamemode": true,
+  "lang": "pt",
+  "view_mode": "icons",
+  "icon_size": 180
+}

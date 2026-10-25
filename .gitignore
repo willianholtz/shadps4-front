@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# preferências locais (contêm caminhos pessoais)
+config/front.json
+
+# backups gerados pelo app
+*.backup-front
+
+# utilitário externo pesado (o CLI está em tools/)
+tools/PKGInstall.AppImage

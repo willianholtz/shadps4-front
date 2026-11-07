@@ -2,64 +2,66 @@
 
 ![shadps4-front](icon.png)
 
-Frontend gráfico em **PySide6** para o emulador [shadPS4](https://github.com/shadps4-emu/shadPS4) no Linux:
-biblioteca de jogos com capas, launcher e um editor **seguro** do `config.toml` do emulador.
+A **PySide6 graphical frontend** for the [shadPS4](https://github.com/shadps4-emu/shadPS4) emulator on Linux:
+game library with covers, game launcher and a **safe** editor for the emulator's `config.toml`.
 
-> O frontend **nunca altera os arquivos dos jogos**. Ele só lê a biblioteca e, quando você manda,
-> edita o `config.toml` do shadPS4 (sempre com backup).
+> The frontend **never touches game files**. It only reads the library and, when you ask,
+> edits shadPS4's `config.toml` (always with a backup).
 
 ---
 
-## Recursos
+## Features
 
-### Biblioteca
-- Varre as pastas de jogos configuradas no próprio shadPS4 e monta a lista automaticamente
-- Lê o nome real do jogo do `sce_sys/param.sfo` e a capa do `sce_sys/icon0.png`
-- Busca por nome, visão em **ícones** ou **lista**, tamanho dos ícones ajustável
-- Ignora pastas `*-patch` e jogos sem `eboot.bin` válido
+### Library
+- Scans the game folders configured in shadPS4 itself and builds the list automatically
+- Reads the real game name from `sce_sys/param.sfo` and the cover from `sce_sys/icon0.png`
+- Search by name, **icons** or **list** view, adjustable icon size
+- Ignores `*-patch` folders and games without a valid `eboot.bin`
 
-### Jogar
-- Duplo clique (ou menu de contexto) inicia o jogo
-- **gamemoderun** opcional (quando instalado) para prioridade/performance
-- Botão parar, status de execução e volta automática da janela ao fechar o jogo
-- Impede abrir dois jogos ao mesmo tempo
+### Playing
+- Double click (or context menu) starts the game
+- Optional **gamemoderun** (when installed) for priority/performance
+- Stop button, running status and automatic window restore when the game closes
+- Prevents opening two games at the same time
 
-### Instalação de PKG
-- Instala `.pkg` direto pela interface, usando o `tools/pkginstall-cli`
-- Instala vários arquivos em sequência, com progresso e opção de cancelar
-- Mostra a pasta de destino ao final
+### PKG installation
+- Install `.pkg` directly from the UI, using `tools/pkginstall-cli`
+- Install several files in sequence, with progress and cancel option
+- Shows the destination folder at the end
 
-### Configurações do shadPS4
-- Lista **todas** as seções e chaves do `config.toml` com widgets adequados
-  (checkbox, número, texto, pasta, lista, combos com valores fixos)
-- Descrição em português/inglês de cada opção
-- **Backup automático** em `config.toml.backup-front` antes de qualquer escrita
-- Merge linha a linha: preserva comentários e o que ele não entende
-- Pastas de jogos gerenciadas pela interface (sincroniza `installDirs`/`installDirsEnabled`)
+### shadPS4 settings
+- Lists **all** sections and keys of `config.toml` with proper widgets
+  (checkbox, number, text, folder, list, combos with fixed values)
+- Portuguese/English description for every option
+- **Automatic backup** in `config.toml.backup-front` before any write
+- Line-by-line merge: preserves comments and anything it does not understand
+- Game folders managed by the UI (syncs `installDirs`/`installDirsEnabled`)
 
-### Ajustes rápidos (menu de contexto)
-- Resolução interna: **720p / 1080p / 1440p / 4K**
-- Liga/desliga **FSR** e emulação de **PS4 Pro**
-- *São ajustes globais — valem para todos os jogos*
+### Quick tweaks (context menu)
+- Internal resolution: **720p / 1080p / 1440p / 4K**
+- Toggle **FSR**, **RCAS** (sharpening), **HDR**, **PS4 Pro**, **Fullscreen**,
+  **Pipeline cache**, **Patch shaders**
+- Present mode (Mailbox / Fifo / Immediate) and VBlank (30 / 60 / 120 Hz)
+- *These are global settings — they apply to all games*
 
-### Utilidades
-- **Verificar integridade**: acha arquivos zerados (download/instalação corrompida)
-- Abrir pasta do jogo e pasta de addons
-- **Apagar ROM** manda para a lixeira (com `.trashinfo`, dá para restaurar)
+### Utilities
+- **Integrity check**: finds zeroed files (corrupted download/installation)
+- Open game folder and addon folder
+- **Delete ROM** sends to the trash (with `.trashinfo`, restorable)
 
 ### Interface
-- Tema escuro, PT-BR e English (troca na hora)
-- Layout responsivo com lista lateral de seções nas configurações
+- Dark theme, PT-BR and English (switched on the fly)
+- Responsive layout with a side section list in settings
 
 ---
 
-## Requisitos
+## Requirements
 
-- **Linux** (usa `gamemoderun` e a lixeira XDG)
-- **Python 3.11+** (usa `tomllib`; testado no 3.14)
+- **Linux** (uses `gamemoderun` and the XDG trash)
+- **Python 3.11+** (uses `tomllib`; tested on 3.14)
 - **PySide6 6.x**
-- **shadPS4** instalado e acessível no `PATH` (ou aponte o binário em `config/front.json`)
-- Opcional: `gamemode` para o `gamemoderun`
+- **shadPS4** installed and reachable in `PATH` (or point the binary in `config/front.json`)
+- Optional: `gamemode` for `gamemoderun`
 
 ```bash
 # Arch
@@ -68,7 +70,7 @@ sudo pacman -S python pyside6
 sudo apt install python3 python3-pyside6.qtwidgets
 ```
 
-## Instalação e execução
+## Installation and usage
 
 ```bash
 git clone https://github.com/willianholtz/shadps4-front.git
@@ -81,68 +83,70 @@ pip install PySide6
 python app.py
 ```
 
-Na primeira execução o app importa as pastas de jogos já configuradas no shadPS4.
-Se não houver nenhuma, adicione em **Configurações → Pastas de jogos**.
+On first run the app imports the game folders already configured in shadPS4.
+If there are none, add them in **Settings → Game folders**.
 
 ---
 
-## Como funciona
+## How it works
 
-| Arquivo | Papel |
+| File | Role |
 |---|---|
-| `app.py` | Aplicação inteira (biblioteca, launcher, editor de config) |
-| `strings.py` | Textos PT-BR/EN da interface + descrição de cada chave do `config.toml` |
-| `config/front.json` | Preferências do frontend (pastas, binário, idioma, visual) — **não vai pro Git**; existe o modelo em `config/front.example.json` |
-| `tools/pkginstall-cli` | Instalador de PKG usado pela interface |
-| `icon.png` | Ícone do app |
+| `app.py` | Whole application (library, launcher, config editor) |
+| `strings.py` | PT-BR/EN UI texts + description of each `config.toml` key |
+| `config/front.json` | Frontend preferences (folders, binary, language, view) — **not committed**; template in `config/front.example.json` |
+| `tools/pkginstall-cli` | PKG installer used by the UI |
+| `icon.png` | App icon |
 
-**Caminhos usados:**
+**Paths used:**
 
-- Config do emulador: `~/.local/share/shadPS4/config.toml`
-- Config do frontend: `config/front.json` (na pasta do projeto)
-- Config antiga (migrada automaticamente): `~/.config/shadps4-front/config.json`
-- Backup do emulador: `~/.local/share/shadPS4/config.toml.backup-front`
+- Emulator config: `~/.local/share/shadPS4/config.toml`
+- Frontend config: `config/front.json` (in the project folder)
+- Legacy config (auto-migrated): `~/.config/shadps4-front/config.json`
+- Emulator backup: `~/.local/share/shadPS4/config.toml.backup-front`
 
-**Contrato do instalador de PKG** (caso queira trocar o binário):
+**PKG installer contract** (in case you swap the binary):
 
 ```bash
-tools/pkginstall-cli jogo.pkg --out /pasta/destino
-# imprime "OUTDIR=/pasta/..." na saída e "OK" no final em caso de sucesso
+tools/pkginstall-cli game.pkg --out /destination/folder
+# prints "OUTDIR=/folder/..." and "OK" on success
 ```
 
 ---
 
-## Segurança
+## Security
 
-- Os jogos são tratados como **somente leitura**
-- Toda escrita no `config.toml` faz backup antes
-- Apagar ROM usa a lixeira do sistema, nunca `rm -rf`
-- Antes de aplicar, o app mostra quantos ajustes foram alterados
+- Games are treated as **read-only**
+- Every write to `config.toml` makes a backup first
+- Deleting a ROM uses the system trash, never `rm -rf`
+- Before applying, the app shows how many settings changed
 
-## Limitações conhecidas
+## Known limitations
 
-- Linux apenas
-- Resolução interna, FSR e PS4 Pro são **globais** (o `config.toml` do shadPS4 não separa por jogo)
-- O título exibido vem do `param.sfo`; jogos sem esse arquivo usam o nome da pasta
-- O `tools/PKGInstall.AppImage` (~30 MB) é um utilitário externo e pode ser removido do repositório
+- Linux only
+- Internal resolution, FSR and PS4 Pro are **global** (shadPS4's `config.toml` does not separate per game)
+- The displayed title comes from `param.sfo`; games without it use the folder name
+- `tools/PKGInstall.AppImage` (~30 MB) is an external utility and can be removed from the repo
 
-## Aviso legal
+## Legal notice
 
-Este projeto **não inclui jogos, firmware ou dados de jogo**. Você precisa da sua própria cópia
-legal dos títulos. O shadPS4 é um projeto separado; este repositório é apenas uma interface.
+This project **does not include games, firmware or game data**. You need your own legal copy
+of the titles. shadPS4 is a separate project; this repository is only a frontend.
 
-## Licença
+## License
 
-A definir.
+To be defined.
 
 ---
 
-## English (short)
+## Português (resumo)
 
-**shadps4-front** is a PySide6 GUI frontend for the shadPS4 emulator on Linux: game library with
-covers, game launcher (optional `gamemoderun`), PKG installer and a safe editor for the emulator's
-`config.toml` (automatic backup, line-by-line merge that preserves comments). Also offers quick
-tweaks (internal resolution, FSR, PS4 Pro), integrity check, open folder and delete-to-trash.
+**shadps4-front** é uma interface gráfica em PySide6 para o emulador shadPS4 no Linux:
+biblioteca de jogos com capas, launcher (com `gamemoderun` opcional), instalador de PKG e
+editor seguro do `config.toml` (backup automático, merge linha a linha preservando comentários).
+Também oferece ajustes rápidos (resolução interna, FSR, RCAS, HDR, PS4 Pro, fullscreen,
+pipeline cache, patch shaders, present mode, VBlank), verificação de integridade, abrir pasta
+e apagar ROM para a lixeira.
 
-Requirements: Linux, Python 3.11+, PySide6, shadPS4 in `PATH`. Run with `python app.py`.
-No game data is included.
+Requisitos: Linux, Python 3.11+, PySide6, shadPS4 no `PATH`. Rodar com `python app.py`.
+Não inclui dados de jogos. Interface em PT-BR e English.

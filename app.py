@@ -12,7 +12,7 @@ from PySide6.QtCore import Qt, QProcess, QSize, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout,
-    QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow,
+    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow,
     QMessageBox, QPushButton, QScrollArea, QSlider, QSpinBox, QSplitter, QTabWidget,
     QVBoxLayout, QWidget,
 )
@@ -624,6 +624,142 @@ class SettingsTab(QWidget):
                                 f"({len(changes)} ajustes). Backup em config.toml.backup-front")
 
 
+
+class BoostTab(QWidget):
+    def __init__(self, main):
+        super().__init__()
+        self.main = main
+        layout = QVBoxLayout(self)
+
+        # Presets
+        g = QGroupBox("Presets")
+        gl = QHBoxLayout(g)
+        for name in ("Performance", "Balanced", "Quality"):
+            b = QPushButton(name)
+            b.clicked.connect(lambda _c, n=name: self.apply_preset(n))
+            gl.addWidget(b)
+        auto = QPushButton(tr(self.main.front, "auto_preset"))
+        auto.clicked.connect(lambda: self.apply_preset(auto_preset_name()))
+        gl.addWidget(auto)
+        vram = detect_vram_mb()
+        info = QLabel(f"{tr(self.main.front, 'vram')}: {vram} MB" if vram else f"{tr(self.main.front, 'vram')}: n/a")
+        info.setObjectName("desc")
+        gl.addWidget(info)
+        layout.addWidget(g)
+
+        # Quick tweaks form
+        form = QFormLayout()
+        self.res_combo = QComboBox()
+        for label, w, h in [("720p", 1280, 720), ("1080p", 1920, 1080),
+                            ("1440p", 2560, 1440), ("4K", 3840, 2160)]:
+            self.res_combo.addItem(label, (w, h))
+        form.addRow("Resolucao interna", self.res_combo)
+
+        self.present_combo = QComboBox()
+        self.present_combo.addItems(["Mailbox", "Fifo", "Immediate"])
+        form.addRow("Present mode", self.present_combo)
+
+        self.vblank_combo = QComboBox()
+        for hz in (30, 60, 120):
+            self.vblank_combo.addItem(str(hz), hz)
+        form.addRow("VBlank (Hz)", self.vblank_combo)
+
+        self.cb_fsr = QCheckBox("FSR")
+        self.cb_rcas = QCheckBox("RCAS (sharpening)")
+        self.cb_hdr = QCheckBox("HDR")
+        self.cb_pro = QCheckBox("PS4 Pro")
+        self.cb_full = QCheckBox("Fullscreen")
+        self.cb_pipe = QCheckBox("Pipeline cache")
+        self.cb_patch = QCheckBox("Patch shaders")
+        for cb in (self.cb_fsr, self.cb_rcas, self.cb_hdr, self.cb_pro,
+                   self.cb_full, self.cb_pipe, self.cb_patch):
+            form.addRow("", cb)
+
+        layout.addLayout(form)
+
+        btns = QHBoxLayout()
+        apply_btn = QPushButton(tr(self.main.front, "apply"))
+        apply_btn.setObjectName("accent")
+        apply_btn.clicked.connect(self.apply)
+        reload_btn = QPushButton(tr(self.main.front, "reload"))
+        reload_btn.clicked.connect(self.reload)
+        btns.addWidget(apply_btn)
+        btns.addWidget(reload_btn)
+        btns.addStretch(1)
+        layout.addLayout(btns)
+
+        self.reload()
+
+    def _current(self, section, key, default=None):
+        return shad_get(section, key, default)
+
+    def reload(self):
+        # resolution
+        w = shad_get("GPU", "internalScreenWidth", 1920)
+        h = shad_get("GPU", "internalScreenHeight", 1080)
+        for i in range(self.res_combo.count()):
+            if self.res_combo.itemData(i) == (w, h):
+                self.res_combo.setCurrentIndex(i)
+                break
+        # present mode
+        pm = shad_get("GPU", "presentMode", "Mailbox")
+        idx = self.present_combo.findText(str(pm))
+        if idx >= 0:
+            self.present_combo.setCurrentIndex(idx)
+        # vblank
+        vb = shad_get("GPU", "vblankFrequency", 60)
+        for i in range(self.vblank_combo.count()):
+            if self.vblank_combo.itemData(i) == vb:
+                self.vblank_combo.setCurrentIndex(i)
+                break
+        self.cb_fsr.setChecked(bool(shad_get("GPU", "fsrEnabled", False)))
+        self.cb_rcas.setChecked(bool(shad_get("GPU", "rcasEnabled", False)))
+        self.cb_hdr.setChecked(bool(shad_get("GPU", "allowHDR", False)))
+        self.cb_pro.setChecked(bool(shad_get("General", "isPS4Pro", False)))
+        self.cb_full.setChecked(bool(shad_get("GPU", "Fullscreen", False)))
+        self.cb_pipe.setChecked(bool(shad_get("Vulkan", "pipelineCacheEnable", True)))
+        self.cb_patch.setChecked(bool(shad_get("GPU", "patchShaders", False)))
+
+    def apply_preset(self, name):
+        changes = PRESETS.get(name)
+        if not changes:
+            return
+        apply_to_shad_config(dict(changes))
+        self.reload()
+        QMessageBox.information(self, "shadps4-front",
+                                f"Preset {name}: {tr(self.main.front, 'applied')}")
+
+    def apply(self):
+        w, h = self.res_combo.currentData()
+        changes = {
+            ("GPU", "internalScreenWidth"): w,
+            ("GPU", "internalScreenHeight"): h,
+            ("GPU", "presentMode"): self.present_combo.currentText(),
+            ("GPU", "vblankFrequency"): self.vblank_combo.currentData(),
+            ("GPU", "fsrEnabled"): self.cb_fsr.isChecked(),
+            ("GPU", "rcasEnabled"): self.cb_rcas.isChecked(),
+            ("GPU", "allowHDR"): self.cb_hdr.isChecked(),
+            ("General", "isPS4Pro"): self.cb_pro.isChecked(),
+            ("GPU", "Fullscreen"): self.cb_full.isChecked(),
+            ("Vulkan", "pipelineCacheEnable"): self.cb_pipe.isChecked(),
+            ("GPU", "patchShaders"): self.cb_patch.isChecked(),
+        }
+        try:
+            backup = SHAD_CONFIG + ".backup-front"
+            import shutil
+            shutil.copy2(SHAD_CONFIG, backup)
+            apply_to_shad_config(changes)
+        except (OSError, TypeError) as e:
+            QMessageBox.warning(self, "shadps4-front",
+                                f"{tr(self.main.front, 'apply_fail')} {e}")
+            return
+        self.reload()
+        QMessageBox.information(self, "shadps4-front",
+                                f"{tr(self.main.front, 'applied')} "
+                                f"({len(changes)} ajustes). Backup em config.toml.backup-front")
+
+
+
 class Main(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -695,6 +831,8 @@ class Main(QMainWindow):
         layout.addLayout(bottom)
 
         self.tabs.addTab(lib, "")
+        self.boost = BoostTab(self)
+        self.tabs.addTab(self.boost, "")
         self.settings = SettingsTab(self)
         self.tabs.addTab(self.settings, "")
         self.retranslate()
@@ -703,7 +841,8 @@ class Main(QMainWindow):
     def retranslate(self):
         f = self.front
         self.tabs.setTabText(0, tr(f, "library"))
-        self.tabs.setTabText(1, tr(f, "settings"))
+        self.tabs.setTabText(1, tr(f, "boost"))
+        self.tabs.setTabText(2, tr(f, "settings"))
         self.search.setPlaceholderText(tr(f, "search"))
         self.view_combo.blockSignals(True)
         self.view_combo.clear()

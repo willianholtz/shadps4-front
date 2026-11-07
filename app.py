@@ -182,6 +182,22 @@ def apply_to_shad_config(changes):
     return True
 
 
+def shad_get(section, key, default=None):
+    """Le um valor do config.toml do shadPS4 (ou default se ausente)."""
+    try:
+        with open(SHAD_CONFIG, "rb") as f:
+            cfg = tomllib.load(f)
+        return cfg.get(section, {}).get(key, default)
+    except (OSError, tomllib.TOMLDecodeError):
+        return default
+
+
+def toggle_tweak(self, section, key, label):
+    cur = shad_get(section, key, False)
+    self.quick_tweak({(section, key): (not bool(cur))}, label)
+
+
+
 MODERN_QSS = """
 * { outline: none; }
 QMainWindow, QWidget { background-color: #16181d; color: #dcdde1; font-size: 13px; }
@@ -778,12 +794,34 @@ class Main(QMainWindow):
                 {("GPU", "internalScreenWidth"): w,
                  ("GPU", "internalScreenHeight"): h},
                 f"{tr(self.front, 'res')} {w}x{h}"))
+        # toggles (leem o valor atual e invertem)
         a = boost.addAction("FSR on/off")
-        a.triggered.connect(lambda: self.quick_tweak({("GPU", "fsrEnabled"): True},
-                                                      "FSR"))
+        a.triggered.connect(lambda: toggle_tweak(self, "GPU", "fsrEnabled", "FSR"))
+        a = boost.addAction("RCAS (sharpening) on/off")
+        a.triggered.connect(lambda: toggle_tweak(self, "GPU", "rcasEnabled", "RCAS"))
+        a = boost.addAction("HDR on/off")
+        a.triggered.connect(lambda: toggle_tweak(self, "GPU", "allowHDR", "HDR"))
         a = boost.addAction("PS4 Pro on/off")
-        a.triggered.connect(lambda: self.quick_tweak({("General", "isPS4Pro"): True},
-                                                      "PS4 Pro"))
+        a.triggered.connect(lambda: toggle_tweak(self, "General", "isPS4Pro", "PS4 Pro"))
+        a = boost.addAction("Fullscreen on/off")
+        a.triggered.connect(lambda: toggle_tweak(self, "GPU", "Fullscreen", "Fullscreen"))
+        a = boost.addAction("Pipeline cache on/off")
+        a.triggered.connect(lambda: toggle_tweak(self, "Vulkan", "pipelineCacheEnable",
+                                                "Pipeline cache"))
+        a = boost.addAction("Patch shaders on/off")
+        a.triggered.connect(lambda: toggle_tweak(self, "GPU", "patchShaders", "Patch shaders"))
+        # present mode cycle
+        pm_menu = boost.addMenu("Present mode")
+        for mode in ("Mailbox", "Fifo", "Immediate"):
+            a = pm_menu.addAction(mode)
+            a.triggered.connect(lambda _c, m=mode: self.quick_tweak(
+                {("GPU", "presentMode"): m}, f"Present mode: {m}"))
+        # vblank
+        vb_menu = boost.addMenu("VBlank (Hz)")
+        for hz in (30, 60, 120):
+            a = vb_menu.addAction(str(hz))
+            a.triggered.connect(lambda _c, h=hz: self.quick_tweak(
+                {("GPU", "vblankFrequency"): h}, f"VBlank {h} Hz"))
         act_folder = menu.addAction(tr(self.front, "open_folder"))
         act_folder.triggered.connect(
             lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(game["dir"])))

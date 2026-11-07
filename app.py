@@ -1,6 +1,8 @@
 """shadps4-front: biblioteca + configuracoes. Somente leitura nos jogos."""
 import json
 import os
+import glob
+import subprocess
 import re
 import struct
 import sys
@@ -195,6 +197,97 @@ def shad_get(section, key, default=None):
 def toggle_tweak(self, section, key, label):
     cur = shad_get(section, key, False)
     self.quick_tweak({(section, key): (not bool(cur))}, label)
+
+
+
+PRESETS = {
+    "Performance": {
+        ("GPU", "internalScreenWidth"): 1280,
+        ("GPU", "internalScreenHeight"): 720,
+        ("GPU", "fsrEnabled"): False,
+        ("GPU", "rcasEnabled"): False,
+        ("GPU", "allowHDR"): False,
+        ("GPU", "patchShaders"): False,
+        ("General", "isPS4Pro"): False,
+        ("GPU", "presentMode"): "Mailbox",
+        ("GPU", "vblankFrequency"): 60,
+        ("Vulkan", "pipelineCacheEnable"): True,
+    },
+    "Balanced": {
+        ("GPU", "internalScreenWidth"): 1920,
+        ("GPU", "internalScreenHeight"): 1080,
+        ("GPU", "fsrEnabled"): True,
+        ("GPU", "rcasEnabled"): True,
+        ("GPU", "allowHDR"): True,
+        ("GPU", "patchShaders"): True,
+        ("General", "isPS4Pro"): False,
+        ("GPU", "presentMode"): "Mailbox",
+        ("GPU", "vblankFrequency"): 60,
+        ("Vulkan", "pipelineCacheEnable"): True,
+    },
+    "Quality": {
+        ("GPU", "internalScreenWidth"): 3840,
+        ("GPU", "internalScreenHeight"): 2160,
+        ("GPU", "fsrEnabled"): True,
+        ("GPU", "rcasEnabled"): True,
+        ("GPU", "allowHDR"): True,
+        ("GPU", "patchShaders"): True,
+        ("General", "isPS4Pro"): True,
+        ("GPU", "presentMode"): "Mailbox",
+        ("GPU", "vblankFrequency"): 60,
+        ("Vulkan", "pipelineCacheEnable"): True,
+    },
+}
+
+
+def detect_vram_mb():
+    """Tenta detectar VRAM (MB) da GPU primaria. 0 se nao conseguir."""
+    # NVIDIA
+    try:
+        out = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            stderr=subprocess.DEVNULL, text=True, timeout=5)
+        vals = [int(x.strip()) for x in out.split() if x.strip().isdigit()]
+        if vals:
+            return vals[0]
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    # AMD / Intel (sysfs)
+    try:
+        for p in glob.glob("/sys/class/drm/card*/device/mem_info_vram_total"):
+            with open(p) as f:
+                b = int(f.read().strip())
+            return b // (1024 * 1024)
+    except (OSError, ValueError):
+        pass
+    return 0
+
+
+def auto_preset_name():
+    vram = detect_vram_mb()
+    if vram >= 8192:
+        return "Quality"
+    if vram >= 4096:
+        return "Balanced"
+    if vram > 0:
+        return "Performance"
+    # fallback: olha o nome da GPU
+    try:
+        out = subprocess.check_output(["lspci"], stderr=subprocess.DEVNULL,
+                                     text=True, timeout=5)
+        low = ("intel" in out.lower() and "uhd" in out.lower()) or "vega" in out.lower()
+        if low:
+            return "Performance"
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return "Balanced"
+
+
+def apply_preset(self, name):
+    changes = PRESETS.get(name)
+    if not changes:
+        return
+    self.quick_tweak(dict(changes), f"Preset: {name}")
 
 
 
@@ -785,6 +878,17 @@ class Main(QMainWindow):
         menu.addSeparator()
         act_verify = menu.addAction(tr(self.front, "verify"))
         act_verify.triggered.connect(lambda: self.verify_game(game))
+        presets = menu.addMenu("Presets (baseado no PC)")
+        for name in ("Performance", "Balanced", "Quality"):
+            a = presets.addAction(name)
+            a.triggered.connect(lambda _c, n=name: apply_preset(self, n))
+        a = presets.addAction("Auto (detectar GPU)")
+        a.triggered.connect(lambda: apply_preset(self, auto_preset_name()))
+        presets.addSeparator()
+        vram = detect_vram_mb()
+        info = presets.addAction(f"VRAM detectada: {vram} MB" if vram else "VRAM: nao detectada")
+        info.setEnabled(False)
+
         boost = menu.addMenu(tr(self.front, "boost"))
         res_menu = boost.addMenu(tr(self.front, "res"))
         for label, w, h in [("720p", 1280, 720), ("1080p", 1920, 1080),

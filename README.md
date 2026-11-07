@@ -39,6 +39,7 @@ game library with covers, game launcher and a **safe** editor for the emulator's
 
 ### Quick tweaks (context menu)
 - Internal resolution: **720p / 1080p / 1440p / 4K**
+- **Presets** (Performance / Balanced / Quality / Auto by GPU) — apply resolution, FSR, RCAS, HDR, PS4 Pro, fullscreen, pipeline cache, patch shaders, present mode and VBlank at once
 - Toggle **FSR**, **RCAS** (sharpening), **HDR**, **PS4 Pro**, **Fullscreen**,
   **Pipeline cache**, **Patch shaders**
 - Present mode (Mailbox / Fifo / Immediate) and VBlank (30 / 60 / 120 Hz)
@@ -144,9 +145,9 @@ To be defined.
 **shadps4-front** é uma interface gráfica em PySide6 para o emulador shadPS4 no Linux:
 biblioteca de jogos com capas, launcher (com `gamemoderun` opcional), instalador de PKG e
 editor seguro do `config.toml` (backup automático, merge linha a linha preservando comentários).
-Também oferece ajustes rápidos (resolução interna, FSR, RCAS, HDR, PS4 Pro, fullscreen,
-pipeline cache, patch shaders, present mode, VBlank), verificação de integridade, abrir pasta
-e apagar ROM para a lixeira.
+Também oferece presets (Performance / Balanced / Quality / Auto por GPU) e ajustes rápidos
+(resolução interna, FSR, RCAS, HDR, PS4 Pro, fullscreen, pipeline cache, patch shaders,
+present mode, VBlank), verificação de integridade, abrir pasta e apagar ROM para a lixeira.
 
 Requisitos: Linux, Python 3.11+, PySide6, shadPS4 no `PATH`. Rodar com `python app.py`.
 Não inclui dados de jogos. Interface em PT-BR e English.

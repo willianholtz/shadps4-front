@@ -12,7 +12,7 @@ from PySide6.QtCore import Qt, QProcess, QSize, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout,
-    QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow,
+    QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow,
     QMessageBox, QPushButton, QScrollArea, QSlider, QSpinBox, QSplitter, QTabWidget,
     QVBoxLayout, QWidget,
 )
@@ -630,25 +630,32 @@ class BoostTab(QWidget):
         super().__init__()
         self.main = main
         layout = QVBoxLayout(self)
+        layout.setSpacing(8)
 
-        # Presets
-        g = QGroupBox("Presets")
-        gl = QHBoxLayout(g)
+        # --- Presets (compact row) ---
+        preset_row = QHBoxLayout()
+        preset_row.addWidget(QLabel("Preset:"))
+        self.preset_combo = QComboBox()
         for name in ("Performance", "Balanced", "Quality"):
-            b = QPushButton(name)
-            b.clicked.connect(lambda _c, n=name: self.apply_preset(n))
-            gl.addWidget(b)
-        auto = QPushButton(tr(self.main.front, "auto_preset"))
-        auto.clicked.connect(lambda: self.apply_preset(auto_preset_name()))
-        gl.addWidget(auto)
+            self.preset_combo.addItem(name)
+        preset_row.addWidget(self.preset_combo)
+        apply_preset_btn = QPushButton("Aplicar")
+        apply_preset_btn.clicked.connect(lambda: self.apply_preset(self.preset_combo.currentText()))
+        preset_row.addWidget(apply_preset_btn)
+        auto_btn = QPushButton(tr(self.main.front, "auto_preset"))
+        auto_btn.clicked.connect(lambda: self.apply_preset(auto_preset_name()))
+        preset_row.addWidget(auto_btn)
         vram = detect_vram_mb()
-        info = QLabel(f"{tr(self.main.front, 'vram')}: {vram} MB" if vram else f"{tr(self.main.front, 'vram')}: n/a")
+        info = QLabel(f"VRAM: {vram} MB" if vram else "VRAM: n/a")
         info.setObjectName("desc")
-        gl.addWidget(info)
-        layout.addWidget(g)
+        preset_row.addWidget(info)
+        preset_row.addStretch(1)
+        layout.addLayout(preset_row)
 
-        # Quick tweaks form
+        # --- Quick tweaks form ---
         form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignLeft)
+
         self.res_combo = QComboBox()
         for label, w, h in [("720p", 1280, 720), ("1080p", 1920, 1080),
                             ("1440p", 2560, 1440), ("4K", 3840, 2160)]:
@@ -664,6 +671,10 @@ class BoostTab(QWidget):
             self.vblank_combo.addItem(str(hz), hz)
         form.addRow("VBlank (Hz)", self.vblank_combo)
 
+        layout.addLayout(form)
+
+        # --- Checkboxes in 2 columns ---
+        cb_grid = QGridLayout()
         self.cb_fsr = QCheckBox("FSR")
         self.cb_rcas = QCheckBox("RCAS (sharpening)")
         self.cb_hdr = QCheckBox("HDR")
@@ -671,12 +682,13 @@ class BoostTab(QWidget):
         self.cb_full = QCheckBox("Fullscreen")
         self.cb_pipe = QCheckBox("Pipeline cache")
         self.cb_patch = QCheckBox("Patch shaders")
-        for cb in (self.cb_fsr, self.cb_rcas, self.cb_hdr, self.cb_pro,
-                   self.cb_full, self.cb_pipe, self.cb_patch):
-            form.addRow("", cb)
+        cbs = [self.cb_fsr, self.cb_rcas, self.cb_hdr, self.cb_pro,
+               self.cb_full, self.cb_pipe, self.cb_patch]
+        for i, cb in enumerate(cbs):
+            cb_grid.addWidget(cb, i // 2, i % 2)
+        layout.addLayout(cb_grid)
 
-        layout.addLayout(form)
-
+        # --- Apply / Reload ---
         btns = QHBoxLayout()
         apply_btn = QPushButton(tr(self.main.front, "apply"))
         apply_btn.setObjectName("accent")
@@ -688,25 +700,23 @@ class BoostTab(QWidget):
         btns.addStretch(1)
         layout.addLayout(btns)
 
+        layout.addStretch(1)
         self.reload()
 
     def _current(self, section, key, default=None):
         return shad_get(section, key, default)
 
     def reload(self):
-        # resolution
         w = shad_get("GPU", "internalScreenWidth", 1920)
         h = shad_get("GPU", "internalScreenHeight", 1080)
         for i in range(self.res_combo.count()):
             if self.res_combo.itemData(i) == (w, h):
                 self.res_combo.setCurrentIndex(i)
                 break
-        # present mode
         pm = shad_get("GPU", "presentMode", "Mailbox")
         idx = self.present_combo.findText(str(pm))
         if idx >= 0:
             self.present_combo.setCurrentIndex(idx)
-        # vblank
         vb = shad_get("GPU", "vblankFrequency", 60)
         for i in range(self.vblank_combo.count()):
             if self.vblank_combo.itemData(i) == vb:
@@ -757,7 +767,6 @@ class BoostTab(QWidget):
         QMessageBox.information(self, "shadps4-front",
                                 f"{tr(self.main.front, 'applied')} "
                                 f"({len(changes)} ajustes). Backup em config.toml.backup-front")
-
 
 
 class Main(QMainWindow):
